@@ -42,6 +42,7 @@ YTS.prototype.search = function searchYT(queryData) {
 	}
 
 	// make request
+	// docs: https://developers.google.com/youtube/v3/docs/search/list
 	$.getJSON(
 		'https://www.googleapis.com/youtube/v3/search',
 		this.requestParameters,
