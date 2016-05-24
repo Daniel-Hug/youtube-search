@@ -1,3 +1,10 @@
+
+
+
+
+// helper functions
+
+
 // 1. calls renderer (should return DOM node) for each item in arr
 // 2. appends all the DOM nodes to parent
 function renderMultiple(arr, renderer, parent) {
@@ -8,27 +15,86 @@ function renderMultiple(arr, renderer, parent) {
 }
 
 
-function searchYT(query) {
-	$.getJSON('https://www.googleapis.com/youtube/v3/search', {
-		q: query,
+
+
+// constructor
+
+function YTS(options) {
+	this.requestParameters = null;
+
+	// set default parameters for request
+	this.requestParameters = {
 		part: 'snippet',
 		key: 'AIzaSyAHFmDVyINh6FDY4o9LVt13O2pSMI9JLdI'
-	}, function(data) {
-		var results = data.items;
-		renderVideos(results);
-	});
+	};
+
+	// response data
+	this.videosData = null;
+
+	// gather elements from options
+	this.$prevButtons = options.$prevButtons;
+	this.$nextButtons = options.$nextButtons;
+	this.resultsParent = options.resultsParent;
 }
 
-var renderVideos = (function() {
-	var parent = $('#video-results')[0];
 
-	return function(results) {
-		$(parent).empty();
-		renderMultiple(results, renderVideo, parent);
-	};
-})();
 
-function renderVideo(videoData) {
+
+// prototype methods
+
+YTS.prototype.search = function searchYT(queryData) {
+	var yts = this;
+
+	// set passed parameters
+	if (queryData.query) {
+		this.requestParameters.q = queryData.query;
+	}
+
+	if (queryData.pageToken) {
+		this.requestParameters.pageToken = queryData.pageToken;
+	} else {
+		delete this.requestParameters.pageToken;
+	}
+
+	// make request
+	$.getJSON(
+		'https://www.googleapis.com/youtube/v3/search',
+		this.requestParameters,
+		function(videosData) {
+			yts.videosData = videosData;
+			yts.renderVideos(videosData);
+		}
+	);
+};
+
+YTS.prototype.prev = function() {
+	this.search({
+		pageToken: this.videosData.prevPageToken
+	});
+};
+
+YTS.prototype.next = function() {
+	this.search({
+		pageToken: this.videosData.nextPageToken
+	});
+};
+
+YTS.prototype.renderVideos = function(videosData) {
+	var yts = this;
+
+	$(this.resultsParent).empty();
+	renderMultiple(videosData.items, function(videoData) {
+		return yts.renderVideo(videoData);
+	}, this.resultsParent);
+
+	// only show necessary prev and next buttons
+	this.$prevButtons.prop('hidden', false);
+	this.$nextButtons.prop('hidden', false);
+	this.$prevButtons.prop('disabled', !videosData.prevPageToken);
+	this.$nextButtons.prop('disabled', !videosData.nextPageToken);
+};
+
+YTS.prototype.renderVideo = function renderVideo(videoData) {
 	// video info
 	var pageURL = 'https://youtu.be/' + videoData.id.videoId;
 	var thumbnailURL = videoData.snippet.thumbnails.medium.url;
@@ -52,12 +118,33 @@ function renderVideo(videoData) {
 	$li.append($a);
 
 	return $li[0];
-}
+};
 
 
 
-$('#video-search-form').on('submit', function(event) {
+
+// DOM tie-in
+
+var app = new YTS({
+	$prevButtons: $('.yt-search .prev-page'),
+	$nextButtons: $('.yt-search .next-page'),
+	resultsParent: $('.yt-search .video-results')[0]
+});
+
+$('.video-search-form').on('submit', function(event) {
 	event.preventDefault();
-	searchYT(this.query.value);
+	app.search({
+		query: this.query.value
+	});
 	this.query.value = '';
+});
+
+app.$prevButtons.on('click', function() {
+	// go to previous page
+	app.prev();
+});
+
+app.$nextButtons.on('click', function() {
+	// go to next page
+	app.next();
 });
