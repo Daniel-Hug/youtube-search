@@ -2,21 +2,6 @@
 
 
 
-// helper functions
-
-
-// 1. calls renderer (should return DOM node) for each item in arr
-// 2. appends all the DOM nodes to parent
-function renderMultiple(arr, renderer, parent) {
-	var renderedEls = [].map.call(arr, renderer); // 1
-	var docFrag = document.createDocumentFragment();
-	for (var i = renderedEls.length; i--;) docFrag.appendChild(renderedEls[i]);
-	parent.appendChild(docFrag); // 2
-}
-
-
-
-
 // constructor
 
 function YTS(options) {
@@ -82,10 +67,14 @@ YTS.prototype.next = function() {
 YTS.prototype.renderVideos = function(videosData) {
 	var yts = this;
 
+	// empty results parent
 	$(this.resultsParent).empty();
-	renderMultiple(videosData.items, function(videoData) {
+
+	// fill results parent
+	var renderedEls = videosData.items.map(function(videoData) {
 		return yts.renderVideo(videoData);
-	}, this.resultsParent);
+	});
+	$(this.resultsParent).append(renderedEls);
 
 	// only show necessary prev and next buttons
 	this.$prevButtons.prop('hidden', false);
